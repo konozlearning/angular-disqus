@@ -19,6 +19,10 @@
     // Placeholder for the disqus shortname
     var shortname;
 
+    // SSO vars
+    var sso;
+    var sso_enabled = false;
+
     /**
      * @return {Element} dom element for script adding
      */
@@ -31,6 +35,15 @@
      */
     function getShortname() {
       return shortname || window.disqus_shortname;
+    }
+
+    /**
+     * Return true if SSO data is ready
+     *
+     * @return {Boolean} true if auth and api_key are set, false otherwise
+     */
+    function isSSOValid(data) {
+      return data.auth && data.api_key;
     }
 
     /**
@@ -55,6 +68,20 @@
       script.type  = 'text/javascript';
       script.async = true;
       script.src   = src;
+
+      return script;
+    }
+
+    /**
+     * Build the SSO Disqus script
+     *
+     * @param  {String} src The SSO code
+     * @return {Element} script element
+     */
+    function buildSSOScriptTag(src) {
+      var script = document.createElement('script');
+      script.type = 'text/javascript';
+      script.text = src;
 
       return script;
     }
@@ -109,6 +136,23 @@
     }
 
     /**
+     * Generate the SSO configuration code. An object must be passed with:
+     * - auth: the authorization key as '<message> <hmac> <timestamp>'
+     * - api_key: the public key of the your Disqus application
+     *
+     * @param  {Object} ssoData The SSO configuration object.
+     * @return {String} The generated code.
+     *
+     * @see https://help.disqus.com/customer/portal/articles/236206
+     */
+    function getSSOScriptTagCode(ssoData) {
+      return 'var disqus_config = function () {\n'
+        + '  this.page.remote_auth_s3 = "' + ssoData.auth + '";\n'
+        + '  this.page.api_key = "' + ssoData.api_key + '";\n'
+        + '}'
+    }
+
+    /**
      * Trigger the reset comment call
      * @param  {String} $location location service
      * @param  {String} id Thread id
@@ -149,6 +193,16 @@
       container.appendChild(buildScriptTag(scriptSrc));
     }
 
+    /**
+     * Adds disqus SSO script to the header
+     *
+     * @param {Object} ssoData And object that contains auth and public key.
+     */
+    function addSSOScriptTag(ssoData) {
+      var container = getScriptContainer();
+      var scriptCode = getSSOScriptTagCode(ssoData);
+      container.appendChild(buildSSOScriptTag(scriptCode));
+    }
 
     /**
      * @param {String} sname shortname
@@ -157,8 +211,16 @@
       shortname = sname;
     };
 
+    /**
+     * Make disqus waiting for SSO configuration.
+     * This must be called from the $disqusProvider configuration to enable SSO.
+     */
+    this.enableSSO = function() {
+      sso_enabled = true;
+    };
+
     // Provider constructor
-    this.$get = [ '$location', function($location) {
+    this.$get = [ '$rootScope', '$location', '$http', function($rootScope, $location, $http) {
 
       /**
        * Resets the comment for thread.
@@ -178,8 +240,28 @@
           resetCommit($location, id);
         } else {
           setGlobals(id, $location.absUrl(), shortname);
-          addScriptTag(shortname, TYPE_EMBED);
+
+          // if SSO let get the sso data
+          if (sso_enabled) {
+            $rootScope.$on('disqus:sso:ready', function() {
+              addScriptTag(shortname, TYPE_EMBED);
+            });
+          } else {
+            addScriptTag(shortname, TYPE_EMBED);
+          }
         }
+      }
+
+      /**
+       * Set the SSO configuration and define disqus_config function.
+       *
+       * @param {String} uri URI from which to load the SSO configuration.
+       */
+      function configSSO(uri) {
+        $http.get(uri).success(function (data) {
+          addSSOScriptTag(data);
+          $rootScope.$emit('disqus:sso:ready');
+        });
       }
 
       /**
@@ -201,7 +283,8 @@
       return {
         commit       : commit,
         getShortname : getShortname,
-        loadCount    : loadCount
+        loadCount    : loadCount,
+        configSSO    : configSSO
       };
     }];
   });
@@ -238,6 +321,19 @@
       restrict : 'A',
       link     : function(scope, elem, attr) {
         $disqus.loadCount(attr.disqusIdentifier);
+      }
+    };
+  }]);
+
+  /**
+   * Disqus SSO directive.
+   * Just wraps `disqus-sso-uri` to configure the disqus_config script.
+   */
+  disqusModule.directive('disqusSsoUri', [ '$disqus', function($disqus) {
+    return {
+      restrict: 'A',
+      link: function (scope, elem, attr) {
+        $disqus.configSSO(attr.disqusSsoUri);
       }
     };
   }]);

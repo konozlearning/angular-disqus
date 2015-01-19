@@ -31,10 +31,20 @@ Add comments to threads by using the ```disqus``` directive
     <div class="disqus : id"></div>
 ```
 
+Use Disqus Single Sign-on (SSO):
+
+  1. Enable SSO by configuring the ```$disqusProvider``` via ```$disqusProvider.enableSSO```.
+  2. Add ```disqus-sso-uri``` directive to get the SSO configuration as follows:
+
+```
+  <!-- specify the uri from which the SSO configuration can be retrieve -->
+  <div disqus="id" disqus-sso-uri="/disqus/sso/configuration/uri"></div>
+```
+
 ### Need to know
 ---
-Disqus will only update on sites which use `hashbang` ( `#!` ).  
-Thats not something I have control over, so in order to use this plugin, please make sure that you have your `$locationProvider.hashPrefix('!')` set.
+Disqus will only update on sites which use `hashbang` ( `#!` ).
+Thats not something I have control over, so in order to use this plugin, please make sure that you have your `$locationProvider.hashPrefix('!')` set. Read more on [Using Disqus on AJAX sites][2].
 
 
 ### Disqus identifiers
@@ -79,4 +89,5 @@ There is some talk of this in the [disqus spec][1]
 
 MIT
 
-[1]: http://help.disqus.com/customer/portal/articles/565624-tightening-your-disqus-integration#using-an-identifier 
+[1]: http://help.disqus.com/customer/portal/articles/565624-tightening-your-disqus-integration#using-an-identifier
+[2]: https://help.disqus.com/customer/portal/articles/472107
