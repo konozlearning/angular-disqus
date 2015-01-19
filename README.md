@@ -73,6 +73,7 @@ There is some talk of this in the [disqus spec][1]
 2. ```$disqus#comment``` will reset comments (or generate comments if needed)
 3. ```$disqusProvider#setShortname``` setter for shortname
 4. ```$loadCount``` initiates the thread comment count loading (generally should not be used)
+4. ```$disqusProvider#enableSSO``` enable the SSO configuration
 
 ### Devel
 ---
